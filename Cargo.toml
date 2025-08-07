@@ -1,0 +1,9 @@
+[package]
+name = "auto_backup_rs"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+iced = "0.12.1"
+zip = "0.6.6"
+chrono = "0.4.38"
