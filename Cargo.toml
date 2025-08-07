@@ -1,5 +1,5 @@
 [package]
-name = "auto_backup_rs"
+name = "auto_backup_rs_iced"
 version = "0.1.0"
 edition = "2024"
 
