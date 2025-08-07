@@ -1,3 +1,4 @@
+mod error;
 mod logic;
 mod ui;
 

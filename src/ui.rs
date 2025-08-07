@@ -37,7 +37,14 @@ impl Sandbox for AutoBackup {
     type Message = Message;
 
     fn new() -> Self {
-        let mut app_state = logic::load_data().unwrap_or_default();
+        let mut app_state = match logic::load_data() {
+            Ok(state) => state,
+            Err(e) => {
+                let mut state = AppState::default();
+                logic::save_log(&mut state, &format!("Failed to load data: {}", e));
+                state
+            }
+        };
         logic::save_log(&mut app_state, "Application started");
         Self {
             app_state,
@@ -66,7 +73,9 @@ impl Sandbox for AutoBackup {
                     self.use_zip,
                 );
                 self.app_state.add_schedule(schedule);
-                logic::save_data(&self.app_state).unwrap();
+                if let Err(e) = logic::save_data(&self.app_state) {
+                    logic::save_log(&mut self.app_state, &format!("Failed to save data: {}", e));
+                }
             }
             Message::Delete => {
                 if self.app_state.n_sel_index != -1 {
@@ -74,7 +83,12 @@ impl Sandbox for AutoBackup {
                         .list_schedule
                         .remove(self.app_state.n_sel_index as usize);
                     self.app_state.n_sel_index = -1;
-                    logic::save_data(&self.app_state).unwrap();
+                    if let Err(e) = logic::save_data(&self.app_state) {
+                        logic::save_log(
+                            &mut self.app_state,
+                            &format!("Failed to save data: {}", e),
+                        );
+                    }
                 }
             }
             Message::Edit => {
@@ -87,13 +101,20 @@ impl Sandbox for AutoBackup {
                     schedule.s_skip_file = self.skip_file.clone();
                     schedule.s_skip_folder = self.skip_folder.clone();
                     schedule.b_use_zip = self.use_zip;
-                    logic::save_data(&self.app_state).unwrap();
+                    if let Err(e) = logic::save_data(&self.app_state) {
+                        logic::save_log(
+                            &mut self.app_state,
+                            &format!("Failed to save data: {}", e),
+                        );
+                    }
                 }
             }
             Message::Run => {
                 if self.app_state.n_sel_index != -1 {
                     let index = self.app_state.n_sel_index as usize;
-                    logic::execute_backup(&mut self.app_state, index);
+                    if let Err(e) = logic::execute_backup(&mut self.app_state, index) {
+                        logic::save_log(&mut self.app_state, &format!("Backup failed: {}", e));
+                    }
                 }
             }
             Message::SourceDirChanged(dir) => self.source_dir = dir,
@@ -105,8 +126,12 @@ impl Sandbox for AutoBackup {
             Message::SelectSchedule(index) => {
                 self.app_state.n_sel_index = index as i32;
                 let schedule = &self.app_state.list_schedule[index];
-                self.source_dir = schedule.s_dir_source.to_str().unwrap().to_string();
-                self.dest_dir = schedule.s_dir_dest.to_str().unwrap().to_string();
+                self.source_dir = schedule
+                    .s_dir_source
+                    .to_str()
+                    .unwrap_or_default()
+                    .to_string();
+                self.dest_dir = schedule.s_dir_dest.to_str().unwrap_or_default().to_string();
                 self.period = schedule.s_period.clone();
                 self.skip_file = schedule.s_skip_file.clone();
                 self.skip_folder = schedule.s_skip_folder.clone();
@@ -163,7 +188,7 @@ impl Sandbox for AutoBackup {
                     column![],
                     |col, (i, schedule)| {
                         col.push(
-                            button(text(schedule.s_dir_source.to_str().unwrap()))
+                            button(text(schedule.s_dir_source.to_str().unwrap_or_default()))
                                 .on_press(Message::SelectSchedule(i)),
                         )
                     }
